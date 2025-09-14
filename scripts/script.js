@@ -14,9 +14,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Track if we've already enabled persistence
-let persistenceEnabled = false;
-
 // Application data structure
 let applications = [];
 
@@ -28,7 +25,7 @@ let cancelAppBtn, cancelExcelBtn, closeModalButtons, filterButtons, totalAppsEl,
 let downCountEl, excelListContainer, tabs, firebaseStatus;
 
 // Initialize the dashboard
-function initDashboard() {
+async function initDashboard() {
     // Initialize DOM elements
     applicationsContainer = document.getElementById('applications-container');
     searchInput = document.getElementById('search-input');
@@ -61,18 +58,15 @@ function initDashboard() {
     tabs = document.querySelectorAll('.tab');
     firebaseStatus = document.getElementById('firebase-status');
     
-    // Load data from Firebase
+    // Enable offline persistence FIRST — before any Firestore operations
+    await enablePersistence();
+    
+    // Now safe to load data
     loadApplications();
     setupEventListeners();
     
     // Show Firebase connection status
     firebaseStatus.style.display = 'flex';
-    
-    // Enable offline persistence (only once)
-    if (!persistenceEnabled) {
-        enablePersistence();
-        persistenceEnabled = true;
-    }
     
     // Monitor connection status
     checkFirebaseConnection();
@@ -89,34 +83,36 @@ function initDashboard() {
     });
 }
 
-// Enable offline persistence
+// Enable offline persistence — called ONCE, right after Firestore init
 function enablePersistence() {
-    // Check if IndexedDB is supported
-    if (!window.indexedDB) {
-        console.log("IndexedDB is not supported by this browser");
-        return;
-    }
-    
-    db.enablePersistence()
-        .then(() => {
-            console.log("Offline persistence enabled");
-        })
-        .catch((err) => {
-            if (err.code === 'failed-precondition') {
-                console.log("Persistence failed - multiple tabs open");
-            } else if (err.code === 'unimplemented') {
-                console.log("Persistence is not available in this browser");
-            } else if (err.message && err.message.includes('Target ID already exists')) {
-                console.log("Persistence already enabled in another tab");
-            } else {
-                console.error("Firebase persistence error: ", err);
-            }
-        });
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+            console.log("IndexedDB not supported — skipping persistence");
+            return resolve();
+        }
+
+        db.enablePersistence()
+            .then(() => {
+                console.log("✅ Offline persistence enabled");
+                resolve();
+            })
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    console.log("⚠️ Persistence failed — multiple tabs open");
+                } else if (err.code === 'unimplemented') {
+                    console.log("⚠️ Persistence not available in this browser");
+                } else if (err.message && err.message.includes('Target ID already exists')) {
+                    console.log("⚠️ Persistence already enabled in another tab");
+                } else {
+                    console.error("🔥 Firebase persistence error: ", err);
+                }
+                resolve(); // Don't block app if persistence fails
+            });
+    });
 }
 
 // Check Firebase connection
 function checkFirebaseConnection() {
-    // Simple check by trying to read a document
     db.collection("applications").limit(1).get()
         .then(() => {
             firebaseStatus.className = 'firebase-status firebase-connected';
@@ -159,7 +155,6 @@ function loadApplications() {
         </div>
     `;
     
-    // Use a try-catch block for better error handling
     try {
         db.collection("applications").orderBy("createdAt", "desc")
             .get()
@@ -201,21 +196,13 @@ function showErrorState(title, message) {
 
 // Set up event listeners
 function setupEventListeners() {
-    // Add application buttons
     addAppBtn.addEventListener('click', () => openAppModal());
-    
-    // View Excel files button
     viewExcelBtn.addEventListener('click', () => openExcelListModal());
-    
-    // Form submissions
     appForm.addEventListener('submit', handleAppSubmit);
     excelForm.addEventListener('submit', handleExcelSubmit);
-    
-    // Cancel buttons
     cancelAppBtn.addEventListener('click', () => closeModal(appModal));
     cancelExcelBtn.addEventListener('click', () => closeModal(excelModal));
     
-    // Close modal buttons
     closeModalButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const modal = this.closest('.modal');
@@ -223,12 +210,10 @@ function setupEventListeners() {
         });
     });
     
-    // Search functionality
     searchInput.addEventListener('input', () => {
         filterApplications();
     });
     
-    // Filter buttons
     filterButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             filterButtons.forEach(b => b.classList.remove('active'));
@@ -237,7 +222,6 @@ function setupEventListeners() {
         });
     });
     
-    // Tabs in Excel list modal
     tabs.forEach(tab => {
         tab.addEventListener('click', function() {
             tabs.forEach(t => t.classList.remove('active'));
@@ -246,7 +230,6 @@ function setupEventListeners() {
         });
     });
     
-    // Close modals when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === appModal) closeModal(appModal);
         if (e.target === excelModal) closeModal(excelModal);
@@ -257,7 +240,6 @@ function setupEventListeners() {
 // Open application modal
 function openAppModal(id = null) {
     if (id) {
-        // Edit existing application
         const app = applications.find(a => a.id === id);
         if (app) {
             modalTitle.textContent = 'Edit Application';
@@ -268,7 +250,6 @@ function openAppModal(id = null) {
             appStatus.value = app.status || 'active';
         }
     } else {
-        // Add new application
         modalTitle.textContent = 'Add New Application';
         appForm.reset();
         appId.value = '';
@@ -280,7 +261,6 @@ function openAppModal(id = null) {
 // Open Excel modal
 function openExcelModal(appId, excelIdParam = null) {
     if (excelIdParam) {
-        // Edit existing Excel file
         const app = applications.find(a => a.id === appId);
         if (app && app.excelFiles) {
             const excelFile = app.excelFiles.find(f => f.id === excelIdParam);
@@ -293,7 +273,6 @@ function openExcelModal(appId, excelIdParam = null) {
             }
         }
     } else {
-        // Add new Excel file
         excelModalTitle.textContent = 'Add Excel File';
         excelForm.reset();
         document.getElementById('excel-id').value = '';
@@ -317,7 +296,6 @@ function closeModal(modal) {
 function handleAppSubmit(e) {
     e.preventDefault();
     
-    // Show loading state
     const submitButton = e.target.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -337,7 +315,6 @@ function handleAppSubmit(e) {
     };
     
     if (appId.value) {
-        // Update existing application
         db.collection("applications").doc(appId.value).update(application)
             .then(() => {
                 console.log("Application updated successfully");
@@ -353,7 +330,6 @@ function handleAppSubmit(e) {
                 submitButton.disabled = false;
             });
     } else {
-        // Add new application
         db.collection("applications").add(application)
             .then(() => {
                 console.log("Application added successfully");
@@ -375,7 +351,6 @@ function handleAppSubmit(e) {
 function handleExcelSubmit(e) {
     e.preventDefault();
     
-    // Show loading state
     const submitButton = e.target.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
     submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
@@ -407,16 +382,13 @@ function handleExcelSubmit(e) {
     
     let updatedExcelFiles;
     if (excelIdValue) {
-        // Update existing Excel file
         updatedExcelFiles = applications[appIndex].excelFiles.map(f => 
             f.id === excelIdValue ? excelFile : f
         );
     } else {
-        // Add new Excel file
         updatedExcelFiles = [...applications[appIndex].excelFiles, excelFile];
     }
     
-    // Update the application with the new Excel files
     db.collection("applications").doc(excelAppIdValue).update({
         excelFiles: updatedExcelFiles
     })
@@ -500,57 +472,13 @@ function updateStats() {
     const appsWithExcel = applications.filter(app => app.excelFiles && app.excelFiles.length > 0).length;
     excelAppsEl.textContent = appsWithExcel;
     
-    // Count server down apps
     const downApps = applications.filter(app => app.status === 'down');
     downCountEl.textContent = downApps.length;
 }
 
-// Filter applications based on search and active filter
-function filterApplications() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
-    
-    let filteredApps = applications;
-    
-    // Apply search filter
-    if (searchTerm) {
-        filteredApps = filteredApps.filter(app => 
-            app.name.toLowerCase().includes(searchTerm) || 
-            (app.description && app.description.toLowerCase().includes(searchTerm)) ||
-            (app.excelFiles && app.excelFiles.some(f => f.name.toLowerCase().includes(searchTerm)))
-        );
-    }
-    
-    // Apply category filter
-    switch (activeFilter) {
-        case 'frequent':
-            filteredApps = filteredApps.filter(app => app.accessCount > 0)
-                .sort((a, b) => (b.accessCount || 0) - (a.accessCount || 0));
-            break;
-        case 'excel':
-            filteredApps = filteredApps.filter(app => app.excelFiles && app.excelFiles.length > 0);
-            break;
-        case 'recent':
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            filteredApps = filteredApps.filter(app => {
-                const createdDate = new Date(app.createdAt);
-                return createdDate >= oneWeekAgo;
-            }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            break;
-        case 'active':
-            filteredApps = filteredApps.filter(app => app.status === 'active');
-            break;
-        case 'down':
-            filteredApps = filteredApps.filter(app => app.status === 'down');
-            break;
-    }
-    
-    displayApplications(filteredApps);
-}
-
-// Escape single quotes for safe HTML attribute injection
+// Escape single quotes to prevent JS syntax break in HTML onclick
 function escapeQuotes(str) {
+    if (typeof str !== 'string') return '';
     return str.replace(/'/g, "\\'");
 }
 
@@ -573,12 +501,10 @@ function displayApplications(apps) {
         const appCard = document.createElement('div');
         appCard.className = 'app-card';
         
-        // Determine status class
         let statusClass = 'status-active';
         if (app.status === 'down') statusClass = 'status-down';
         if (app.status === 'maintenance') statusClass = 'status-maintenance';
         
-        // Format last accessed time
         let lastAccessedText = 'Not accessed yet';
         if (app.lastAccessed) {
             const lastAccessedDate = new Date(app.lastAccessed);
@@ -609,7 +535,7 @@ function displayApplications(apps) {
                     </div>
                     ${app.excelFiles && app.excelFiles.length > 0 ? `
                         <div class="excel-list">
-                            ${app.excelFiles.map(file => {
+                            ${(app.excelFiles.map(file => {
                                 const safeFileId = escapeQuotes(file.id);
                                 return `
                                 <div class="excel-item">
@@ -627,7 +553,7 @@ function displayApplications(apps) {
                                     </div>
                                 </div>
                                 `;
-                            }).join('')}
+                            })).join('')}
                         </div>
                     ` : '<p>No Excel files added yet</p>'}
                 </div>
@@ -650,7 +576,6 @@ function displayApplications(apps) {
         applicationsContainer.appendChild(appCard);
     });
     
-    // Add event listeners to buttons
     document.querySelectorAll('.edit-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.getAttribute('data-app-id');
@@ -739,4 +664,6 @@ function renderExcelList(filter) {
 }
 
 // Initialize the dashboard when the page loads
-document.addEventListener('DOMContentLoaded', initDashboard);
+document.addEventListener('DOMContentLoaded', () => {
+    initDashboard().catch(console.error);
+});

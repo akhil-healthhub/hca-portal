@@ -1,20 +1,22 @@
 // HCA Application Portal - Main JavaScript File
 
-// Firebase configuration
+// Firebase configuration - UPDATED
 const firebaseConfig = {
-    apiKey: "AIzaSyDtAZFSvPRVaJzVGVd7xHxdIRfM1KEPruE",
-    authDomain: "access-coordinator-portal.firebaseapp.com",
-    projectId: "access-coordinator-portal",
-    storageBucket: "access-coordinator-portal.firebasestorage.app",
-    messagingSenderId: "1095681155011",
-    appId: "1:1095681155011:web:3b52fc93641d8153f56776"
+    apiKey: "AIzaSyCUFq67scXfs07vTjz5nmTKNcJsjB0Kl2Y",
+    authDomain: "hcaaccess-portal.firebaseapp.com",
+    projectId: "hcaaccess-portal",
+    storageBucket: "hcaaccess-portal.firebasestorage.app",
+    messagingSenderId: "383248420500",
+    appId: "1:383248420500:web:1192c0c9c58fd34a01ae81"
 };
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Track if we've already enabled persistence (optional, not needed anymore)
+// Track if we've already enabled persistence
+let persistenceEnabled = false;
+
 // Application data structure
 let applications = [];
 
@@ -24,8 +26,6 @@ let modalTitle, excelModalTitle, appId, appName, appUrl, appDescription, appStat
 let excelId, excelAppId, excelName, excelUrl, addAppBtn, viewExcelBtn;
 let cancelAppBtn, cancelExcelBtn, closeModalButtons, filterButtons, totalAppsEl, excelAppsEl;
 let downCountEl, excelListContainer, tabs, firebaseStatus;
-
-// ▶️ DEFINE ALL FUNCTIONS BEFORE USING THEM
 
 // Escape single quotes to prevent JS syntax break in HTML onclick
 function escapeQuotes(str) {
@@ -239,11 +239,11 @@ function loadApplications() {
                     });
                 });
                 updateStats();
-                filterApplications(); // ✅ Now defined above — SAFE TO CALL
+                filterApplications();
             })
             .catch((error) => {
                 console.error("Error loading applications: ", error);
-                showErrorState("Error Loading Applications", "There was a problem connecting to the database");
+                showErrorState("Error Loading Applications", "There was a problem connecting to the database. Please check your Firebase security rules.");
             });
     } catch (error) {
         console.error("Unexpected error: ", error);
@@ -251,30 +251,28 @@ function loadApplications() {
     }
 }
 
-// Enable offline persistence — called ONCE, right after Firestore init
+// Enable offline persistence
 function enablePersistence() {
     return new Promise((resolve, reject) => {
-        if (!window.indexedDB) {
-            console.log("IndexedDB not supported — skipping persistence");
+        if (persistenceEnabled || !window.indexedDB) {
+            console.log("Persistence already enabled or IndexedDB not supported");
             return resolve();
         }
 
         db.enablePersistence()
             .then(() => {
-                console.log("✅ Offline persistence enabled");
+                console.log("Offline persistence enabled");
+                persistenceEnabled = true;
                 resolve();
             })
             .catch((err) => {
                 if (err.code === 'failed-precondition') {
-                    console.log("⚠️ Persistence failed — multiple tabs open");
+                    console.log("Persistence failed - multiple tabs open");
                 } else if (err.code === 'unimplemented') {
-                    console.log("⚠️ Persistence not available in this browser");
-                } else if (err.message && err.message.includes('Target ID already exists')) {
-                    console.log("⚠️ Persistence already enabled in another tab");
-                } else {
-                    console.error("🔥 Firebase persistence error: ", err);
+                    console.log("Persistence not available in this browser");
                 }
-                resolve(); // Don't block app if persistence fails
+                console.error("Firebase persistence error: ", err);
+                resolve();
             });
     });
 }
@@ -317,25 +315,25 @@ function hideOfflineNotification() {
 
 // Set up event listeners
 function setupEventListeners() {
-    addAppBtn?.addEventListener('click', () => openAppModal());
-    viewExcelBtn?.addEventListener('click', () => openExcelListModal());
-    appForm?.addEventListener('submit', handleAppSubmit);
-    excelForm?.addEventListener('submit', handleExcelSubmit);
-    cancelAppBtn?.addEventListener('click', () => closeModal(appModal));
-    cancelExcelBtn?.addEventListener('click', () => closeModal(excelModal));
+    addAppBtn.addEventListener('click', () => openAppModal());
+    viewExcelBtn.addEventListener('click', () => openExcelListModal());
+    appForm.addEventListener('submit', handleAppSubmit);
+    excelForm.addEventListener('submit', handleExcelSubmit);
+    cancelAppBtn.addEventListener('click', () => closeModal(appModal));
+    cancelExcelBtn.addEventListener('click', () => closeModal(excelModal));
     
-    closeModalButtons?.forEach(btn => {
+    closeModalButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const modal = this.closest('.modal');
             closeModal(modal);
         });
     });
     
-    searchInput?.addEventListener('input', () => {
+    searchInput.addEventListener('input', () => {
         filterApplications();
     });
     
-    filterButtons?.forEach(btn => {
+    filterButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             filterButtons.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
@@ -343,7 +341,7 @@ function setupEventListeners() {
         });
     });
     
-    tabs?.forEach(tab => {
+    tabs.forEach(tab => {
         tab.addEventListener('click', function() {
             tabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
@@ -689,7 +687,7 @@ async function initDashboard() {
     tabs = document.querySelectorAll('.tab');
     firebaseStatus = document.getElementById('firebase-status');
     
-    // Enable offline persistence FIRST
+    // Enable offline persistence
     await enablePersistence();
     
     // Now load data and setup UI
@@ -718,5 +716,6 @@ async function initDashboard() {
 document.addEventListener('DOMContentLoaded', () => {
     initDashboard().catch(err => {
         console.error("Failed to initialize dashboard:", err);
+        showErrorState("Initialization Error", "Failed to initialize the application dashboard");
     });
 });

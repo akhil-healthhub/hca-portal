@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCA Application Portal</title>
+    <link rel="stylesheet" href="styles/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="firebase-status" class="firebase-status firebase-connected">
+        <i class="fas fa-cloud"></i>
+        <span>Connected to Firebase</span>
+    </div>
+    
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div class="logo">
+                    <i class="fas fa-hospital logo-icon"></i>
+                    <h1>HCA Application Portal</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-primary pulse" id="add-app-btn">
+                        <i class="fas fa-plus"></i> Add Application
+                    </button>
+                    <button class="btn btn-secondary" id="view-excel-btn">
+                        <i class="fas fa-file-excel"></i> View All Excel Files
+                    </button>
+                </div>
+            </div>
+            
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="search-input" placeholder="Search applications or Excel files...">
+                </div>
+            </div>
+            
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="all">All Applications</button>
+                <button class="filter-btn" data-filter="frequent">Frequently Used</button>
+                <button class="filter-btn" data-filter="excel">With Excel Files</button>
+                <button class="filter-btn" data-filter="recent">Recently Added</button>
+                <button class="filter-btn" data-filter="active">Active</button>
+                <button class="filter-btn" data-filter="down">Server Down</button>
+            </div>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Applications</h3>
+                <div class="number" id="total-apps">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>With Excel Files</h3>
+                <div class="number" id="excel-apps">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Server Down</h3>
+                <div class="number" id="down-count">0</div>
+            </div>
+        </div>
+        
+        <div class="applications-grid" id="applications-container">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Application Modal -->
+    <div class="modal" id="app-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Application</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <form id="app-form">
+                <input type="hidden" id="app-id">
+                <div class="form-group">
+                    <label for="app-name">Application Name *</label>
+                    <input type="text" id="app-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="app-url">Application URL *</label>
+                    <input type="url" id="app-url" required>
+                </div>
+                <div class="form-group">
+                    <label for="app-description">Description</label>
+                    <textarea id="app-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="app-status">Status *</label>
+                    <select id="app-status" required>
+                        <option value="active">Active</option>
+                        <option value="down">Server Down</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-app-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Excel File Modal -->
+    <div class="modal" id="excel-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="excel-modal-title">Add Excel File</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <form id="excel-form">
+                <input type="hidden" id="excel-id">
+                <input type="hidden" id="excel-app-id">
+                <div class="form-group">
+                    <label for="excel-name">Excel File Name *</label>
+                    <input type="text" id="excel-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="excel-url">Excel File URL *</label>
+                    <input type="url" id="excel-url" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-excel-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Excel File</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Excel List Modal -->
+    <div class="modal" id="excel-list-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>All Excel Files</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="tabs">
+                <div class="tab active" data-tab="all">All Files</div>
+                <div class="tab" data-tab="recent">Recently Added</div>
+            </div>
+            <div id="excel-list-container">
+                <!-- Excel files will be listed here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="scripts/script.js"></script>
+</body>
+</html>

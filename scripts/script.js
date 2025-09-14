@@ -14,18 +14,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Enable offline persistence
-db.enablePersistence()
-  .catch((err) => {
-      console.log('Firebase persistence error: ', err);
-      if (err.code === 'failed-precondition') {
-          // Multiple tabs open, persistence can only be enabled in one tab at a time
-          console.log('Persistence failed - multiple tabs open');
-      } else if (err.code === 'unimplemented') {
-          // The current browser doesn't support all of the features required
-          console.log('Persistence is not available in this browser');
-      }
-  });
+// Track if we've already enabled persistence
+let persistenceEnabled = false;
 
 // Application data structure
 let applications = [];
@@ -78,8 +68,56 @@ function initDashboard() {
     // Show Firebase connection status
     firebaseStatus.style.display = 'flex';
     
+    // Enable offline persistence (only once)
+    if (!persistenceEnabled) {
+        enablePersistence();
+        persistenceEnabled = true;
+    }
+    
     // Monitor connection status
-    firebase.firestore().enableNetwork()
+    checkFirebaseConnection();
+        
+    // Listen for online/offline status
+    window.addEventListener('online', function() {
+        checkFirebaseConnection();
+    });
+
+    window.addEventListener('offline', function() {
+        firebaseStatus.className = 'firebase-status firebase-disconnected';
+        firebaseStatus.innerHTML = '<i class="fas fa-cloud"></i><span>Disconnected from Firebase</span>';
+        showOfflineNotification();
+    });
+}
+
+// Enable offline persistence
+function enablePersistence() {
+    // Check if IndexedDB is supported
+    if (!window.indexedDB) {
+        console.log("IndexedDB is not supported by this browser");
+        return;
+    }
+    
+    db.enablePersistence()
+        .then(() => {
+            console.log("Offline persistence enabled");
+        })
+        .catch((err) => {
+            if (err.code === 'failed-precondition') {
+                console.log("Persistence failed - multiple tabs open");
+            } else if (err.code === 'unimplemented') {
+                console.log("Persistence is not available in this browser");
+            } else if (err.message && err.message.includes('Target ID already exists')) {
+                console.log("Persistence already enabled in another tab");
+            } else {
+                console.error("Firebase persistence error: ", err);
+            }
+        });
+}
+
+// Check Firebase connection
+function checkFirebaseConnection() {
+    // Simple check by trying to read a document
+    db.collection("applications").limit(1).get()
         .then(() => {
             firebaseStatus.className = 'firebase-status firebase-connected';
             firebaseStatus.innerHTML = '<i class="fas fa-cloud"></i><span>Connected to Firebase</span>';
@@ -91,25 +129,6 @@ function initDashboard() {
             showOfflineNotification();
             console.error("Firebase connection error: ", error);
         });
-        
-    // Listen for online/offline status
-    window.addEventListener('online', function() {
-        firebaseStatus.className = 'firebase-status firebase-connected';
-        firebaseStatus.innerHTML = '<i class="fas fa-cloud"></i><span>Connected to Firebase</span>';
-        hideOfflineNotification();
-        
-        // Try to sync with Firebase
-        firebase.firestore().enableNetwork()
-            .then(() => {
-                loadApplications();
-            });
-    });
-
-    window.addEventListener('offline', function() {
-        firebaseStatus.className = 'firebase-status firebase-disconnected';
-        firebaseStatus.innerHTML = '<i class="fas fa-cloud"></i><span>Disconnected from Firebase</span>';
-        showOfflineNotification();
-    });
 }
 
 // Show offline notification
@@ -406,7 +425,7 @@ function handleExcelSubmit(e) {
         closeModal(excelModal);
         loadApplications();
     })
-    .catch((error) => {
+    .catch((error) {
         console.error("Error saving Excel file: ", error);
         alert("Error saving Excel file. Please try again.");
     })

@@ -9,11 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Firebase Status Indicator -->
     <div id="firebase-status" class="firebase-status firebase-connected">
         <i class="fas fa-cloud"></i>
         <span>Connected to Firebase</span>
     </div>
-    
+
+    <!-- Offline Notification (Dynamically Added) -->
+    <!-- Will be injected by JS when offline -->
+
     <div class="container">
         <header>
             <div class="header-top">
@@ -30,14 +34,14 @@
                     </button>
                 </div>
             </div>
-            
+
             <div class="search-container">
                 <div class="search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="search-input" placeholder="Search applications or Excel files...">
                 </div>
             </div>
-            
+
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">All Applications</button>
                 <button class="filter-btn" data-filter="frequent">Frequently Used</button>
@@ -47,7 +51,7 @@
                 <button class="filter-btn" data-filter="down">Server Down</button>
             </div>
         </header>
-        
+
         <div class="stats">
             <div class="stat-card">
                 <h3>Total Applications</h3>
@@ -62,14 +66,14 @@
                 <div class="number" id="down-count">0</div>
             </div>
         </div>
-        
+
         <div class="applications-grid" id="applications-container">
             <div class="loading">
                 <div class="spinner"></div>
             </div>
         </div>
     </div>
-    
+
     <!-- Application Modal -->
     <div class="modal" id="app-modal">
         <div class="modal-content">
@@ -106,7 +110,7 @@
             </form>
         </div>
     </div>
-    
+
     <!-- Excel File Modal -->
     <div class="modal" id="excel-modal">
         <div class="modal-content">
@@ -132,7 +136,7 @@
             </form>
         </div>
     </div>
-    
+
     <!-- Excel List Modal -->
     <div class="modal" id="excel-list-modal">
         <div class="modal-content">

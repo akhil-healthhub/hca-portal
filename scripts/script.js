@@ -23,7 +23,7 @@ let applications = [];
 // DOM elements
 let applicationsContainer, searchInput, appModal, excelModal, excelListModal, appForm, excelForm;
 let modalTitle, excelModalTitle, appId, appName, appUrl, appDescription, appStatus;
-let excelId, excelAppId, excelName, excelUrl, addAppBtn, addFirstAppBtn, viewExcelBtn;
+let excelId, excelAppId, excelName, excelUrl, addAppBtn, viewExcelBtn;
 let cancelAppBtn, cancelExcelBtn, closeModalButtons, filterButtons, totalAppsEl, excelAppsEl;
 let downCountEl, excelListContainer, tabs, firebaseStatus;
 
@@ -425,7 +425,7 @@ function handleExcelSubmit(e) {
         closeModal(excelModal);
         loadApplications();
     })
-    .catch((error) {
+    .catch((error) => {
         console.error("Error saving Excel file: ", error);
         alert("Error saving Excel file. Please try again.");
     })
@@ -549,6 +549,11 @@ function filterApplications() {
     displayApplications(filteredApps);
 }
 
+// Escape single quotes for safe HTML attribute injection
+function escapeQuotes(str) {
+    return str.replace(/'/g, "\\'");
+}
+
 // Display applications
 function displayApplications(apps) {
     applicationsContainer.innerHTML = '';
@@ -580,6 +585,8 @@ function displayApplications(apps) {
             lastAccessedText = `Last accessed: ${lastAccessedDate.toLocaleDateString()} ${lastAccessedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
         }
         
+        const safeAppId = escapeQuotes(app.id);
+        
         appCard.innerHTML = `
             <div class="app-card-header">
                 <h3>${app.name}</h3>
@@ -588,7 +595,7 @@ function displayApplications(apps) {
             <div class="app-card-body">
                 ${app.description ? `<p class="app-description">${app.description}</p>` : ''}
                 <div class="app-links">
-                    <a href="${app.url}" target="_blank" class="app-link" onclick="recordAccess('${app.id}')">
+                    <a href="${app.url}" target="_blank" class="app-link" onclick="recordAccess('${safeAppId}')">
                         <i class="fas fa-external-link-alt"></i>
                         Open Application
                     </a>
@@ -596,38 +603,41 @@ function displayApplications(apps) {
                 <div class="excel-section">
                     <div class="excel-section-header">
                         <div class="excel-section-title">Excel Files</div>
-                        <button class="action-btn add-excel-btn" data-app-id="${app.id}">
+                        <button class="action-btn add-excel-btn" data-app-id="${safeAppId}">
                             <i class="fas fa-plus"></i> Add Excel
                         </button>
                     </div>
                     ${app.excelFiles && app.excelFiles.length > 0 ? `
                         <div class="excel-list">
-                            ${app.excelFiles.map(file => `
+                            ${app.excelFiles.map(file => {
+                                const safeFileId = escapeQuotes(file.id);
+                                return `
                                 <div class="excel-item">
                                     <div>${file.name}</div>
                                     <div class="excel-item-actions">
-                                        <a href="${file.url}" target="_blank" class="excel-item-btn" onclick="recordAccess('${app.id}')">
+                                        <a href="${file.url}" target="_blank" class="excel-item-btn" onclick="recordAccess('${safeAppId}')">
                                             <i class="fas fa-external-link-alt"></i>
                                         </a>
-                                        <button class="excel-item-btn" onclick="openExcelModal('${app.id}', '${file.id}')">
+                                        <button class="excel-item-btn" onclick="openExcelModal('${safeAppId}', '${safeFileId}')">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="excel-item-btn" onclick="deleteExcelFile('${app.id}', '${file.id}')">
+                                        <button class="excel-item-btn" onclick="deleteExcelFile('${safeAppId}', '${safeFileId}')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     ` : '<p>No Excel files added yet</p>'}
                 </div>
             </div>
             <div class="app-card-footer">
                 <div class="app-actions">
-                    <button class="action-btn edit-btn" data-app-id="${app.id}">
+                    <button class="action-btn edit-btn" data-app-id="${safeAppId}">
                         <i class="fas fa-edit"></i> Edit
                     </button>
-                    <button class="action-btn delete-btn" data-app-id="${app.id}">
+                    <button class="action-btn delete-btn" data-app-id="${safeAppId}">
                         <i class="fas fa-trash"></i> Delete
                     </button>
                 </div>
@@ -702,6 +712,9 @@ function renderExcelList(filter) {
     }
     
     allExcelFiles.forEach(file => {
+        const safeAppId = escapeQuotes(file.appId);
+        const safeFileId = escapeQuotes(file.id);
+        
         const fileEl = document.createElement('div');
         fileEl.className = 'excel-item';
         fileEl.innerHTML = `
@@ -710,13 +723,13 @@ function renderExcelList(filter) {
                 <div style="font-size: 12px; color: #666;">From: ${file.appName}</div>
             </div>
             <div class="excel-item-actions">
-                <a href="${file.url}" target="_blank" class="excel-item-btn" onclick="recordAccess('${file.appId}')">
+                <a href="${file.url}" target="_blank" class="excel-item-btn" onclick="recordAccess('${safeAppId}')">
                     <i class="fas fa-external-link-alt"></i>
                 </a>
-                <button class="excel-item-btn" onclick="openExcelModal('${file.appId}', '${file.id}')">
+                <button class="excel-item-btn" onclick="openExcelModal('${safeAppId}', '${safeFileId}')">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="excel-item-btn" onclick="deleteExcelFile('${file.appId}', '${file.id}')">
+                <button class="excel-item-btn" onclick="deleteExcelFile('${safeAppId}', '${safeFileId}')">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
